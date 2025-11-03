@@ -1,0 +1,123 @@
+﻿
+
+<!-- Modal for generating and display private key -->
+<div class="modal fade" id="keyModal" tabindex="-1" aria-labelledby="keyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="keyModalLabel">Private Key</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Copy -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="text-muted">Key</small>
+                    <button type="button"
+                            id="copyBtn"
+                            class="btn btn-sm btn-outline-secondary"
+                            style="min-width: 70px; border-radius: 5px; font-size: 0.8rem; padding: 4px 10px;"
+                            onclick="copyKey()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: middle; margin-right: 3px;">
+                            <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z" />
+                            <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z" />
+                        </svg>
+                        Copy
+                    </button>
+                </div>
+
+                <!-- Textarea -->
+                <label class="small text-muted">Private Key</label>
+                <textarea id="privateKeyBox"
+                          class="form-control w-100"
+                          rows="12"
+                          style="font-family: monospace; font-size: 0.85rem;"
+                          readonly>
+                </textarea>
+
+                <label class="mt-3 small text-muted">Public Key</label>
+                <textarea id="publicKeyBox"
+                          class="form-control w-100"
+                          rows="6"
+                          style="font-family: monospace; font-size: 0.85rem;"
+                          readonly>
+                </textarea>
+
+
+                <p class="mt-3 text-danger small mb-0"> Warning: Never share this private key. Lost keys cannot be recovered. </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" onclick="generateKeyPair()">Generate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+
+    async function generateKeyPair() {
+        try {
+            const response = await fetch('/BlockChain/GenerateKeyPair');
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+
+            const data = await response.json();
+
+            document.getElementById('privateKeyBox').value = data.privateKey || 'Error: no key';
+            document.getElementById('publicKeyBox').value  = data.publicKey  || 'Error: no key';
+
+            // Авто-подстановка public key в форму Register Wallet
+            const walletPkInput = document.querySelector("input[name='publicKeyXml']");
+            if (walletPkInput) walletPkInput.value = data.publicKey;
+
+        } catch (err) {
+            document.getElementById('privateKeyBox').value = 'Error: ' + err.message;
+            document.getElementById('publicKeyBox').value  = '';
+        }
+    }
+
+
+
+
+    async function copyKey() {
+        const textarea = document.getElementById('privateKeyBox');
+        const btn = document.getElementById('copyBtn');
+
+        if (!textarea || !textarea.value) return;
+
+        try {
+            await navigator.clipboard.writeText(textarea.value);
+
+            // Меняем на "Copied" с галочкой и обратно
+            btn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: middle; margin-right: 3px;">
+                    <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
+                </svg>
+                Copied
+            `;
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-success');
+
+            setTimeout(() => {
+                btn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: middle; margin-right: 3px;">
+                        <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                        <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                    </svg>
+                    Copy
+                `;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-secondary');
+            }, 2000);
+
+        } catch (e) {
+            alert('Clipboard not supported.');
+            console.error(e);
+        }
+    }
+
+
+</script>

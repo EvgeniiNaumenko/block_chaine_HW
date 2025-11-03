@@ -1,0 +1,559 @@
+﻿@model IEnumerable<BlockChain_FP_ITStep.Models.BlockValidationViewModel>
+
+@{
+    ViewData["Title"] = "Index";
+
+    // Default private key for input
+    string defaultPrivateKey = @"<RSAKeyValue><Modulus>xdwWDMpZg59CfkOnhxi/DzO0fM0qCydvgdMsevwpNt71B0IU5140auD6Wvag86ns3abgJ/kwOmGWwlzf0sjIM8xSBjHUQavRIYvf9sDx9LmJKg7vXnIIMLkS/PfXJPMpiw865FU9QH7uQNje6WiqO1y54Ep/U+RPtBeX+80hac2Y3xJiWfEZ+QOZpq1Ay0qBQK1DTL8Jdxng0wgovDFSIwKUvIF7kdvFL/iJ/L4sW38ZubRuk96pSzVBAS/kdURqp9FVw+whRrfK5DQYgHg6uvmgte1L2oCOGlxxIlzcBjyBBL9PhbTH/pRsgYheCnpOuLFxfmMsJpFpBfRNPjkeaQ==</Modulus><Exponent>AQAB</Exponent><P>1fhyDfsGPRIa6tezc6htY9y9bvNyxeleE0G8TEhpQm1UPnGUBaDuTHP8P3YhDywa9R8KvP8jeG9SwTxO6OoHhNPOOkR3vYbQ49ePu3NzyHC2B0iVs5525WRw+5punuFl5S47SMkLDxWBppheh2rmzxp+cIIA43M95wnlpAhsvA8=</P><Q>7LmBpqVqwHjG1spYct3BAXsdh07xesleg8lbXkqu/Jz8TT49aWp3AGQGSTOYo9jDnI5mu4vuh/H9VouiIBagKNl8xeMR+niBJpCBQtB27nRi0m5oB3jkYKTEloOx7VOQcrs+nWjG0wKEjfbGA9xmggjRJq6/iQa0MeZqpKCOZgc=</Q><DP>F0j+QH884pCB1WS75q5BmUiAZP6hUuBemIHi1/pZWh1Dubfqf+JPjIpivRVB68DE/j/ujzrExWp3+wdxHu+4+b+DBdxFm558RQ9EWQXrZ7i8VnaTtARetAAGO5tGxouI5zPsx7L5PR7+CP8z6lC75XXgpKXBKv9zkR0GnJ8+Fgk=</DP><DQ>NY154SNG1Sf9g5XfEI1OHnGlqniXdHmdoh6pRtmKYKd7BFZyOijVpwb5zRGZFGfzSLWGVCNB4QtDjpKkKLI1pUgeS/4kkQ812G2UcHMMlMFLoeNMMXSN5bcgqhQ86j2fTfVCIwYTBKVrK1qKTVFM91nbRu79cZhMp4VC1t9jl30=</DQ><InverseQ>0as05x1Fr3IuVsipgrPyuNKMncjIQpwy3PRWOS1kfkHPBSXC8nwtkIM7cCmPR7wruty3S4U1oumo+cO+ziP17gIkTFEXHVRoa4BL/D3Kwt2uwE39NYMD7NhFgRtZu75VJMrq4sakZFxgEaHG6T7aaAR72eMaWNzgaCfsUvkt3DQ=</InverseQ><D>ccarT1OUweF05RKWZVNPmrhK03FO+fcFYgxDCb2zHYB8Ol4/kwRS9BrHHEOyLivKr3Lkd1gN6aRwgvfRJW6b4V1e1X0V52Wb7sR2V3iAKg/+1hacgxzjpNDoIFuMdgz2GKb7YI27mTjkXJnZJTMwoM4jfNyZ923Uf2UJ2pwM2L+EO5HmqEMJFjOT+qWmORN+4RT9hDTMOk7CvJyIj62Bk7PdDFS3/yJk9X/bJxfthmjtks92l3zIrSc/21FP9PCkoxNYa4MTsyDJ3Rh6X9OoufZ1t+eewPjRRjuqBs9/voGv5aS2eqyBM2EYvuO0MNPQRnRsijRKMEO0U51rnT51uQ==</D></RSAKeyValue>";
+    string defaultPublicKey  = @"<RSAKeyValue><Modulus>xdwWDMpZg59CfkOnhxi/DzO0fM0qCydvgdMsevwpNt71B0IU5140auD6Wvag86ns3abgJ/kwOmGWwlzf0sjIM8xSBjHUQavRIYvf9sDx9LmJKg7vXnIIMLkS/PfXJPMpiw865FU9QH7uQNje6WiqO1y54Ep/U+RPtBeX+80hac2Y3xJiWfEZ+QOZpq1Ay0qBQK1DTL8Jdxng0wgovDFSIwKUvIF7kdvFL/iJ/L4sW38ZubRuk96pSzVBAS/kdURqp9FVw+whRrfK5DQYgHg6uvmgte1L2oCOGlxxIlzcBjyBBL9PhbTH/pRsgYheCnpOuLFxfmMsJpFpBfRNPjkeaQ==</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>";
+    
+    var mempool = ViewBag.Mempool as List<Transaction>;
+    var mempoolCount = (int)ViewBag.MempoolCount;
+    var wallets = ViewBag.Wallets as List<Wallet>;
+}
+
+@* alert -> IsChain Valid  *@
+@if (ViewBag.IsChainValid == true)
+{
+    <div class="alert alert-success" role="alert">
+        Blockchain is valid
+    </div>
+}
+else
+{
+    <div class="alert alert-danger" role="alert">
+        Blockchain integrity compromised!
+    </div>
+}
+
+@if (ViewBag.SearchMessage != null)
+{
+    <div class="alert alert-warning mt-3" role="alert">
+        @ViewBag.SearchMessage
+    </div>
+}
+
+<div style="display:flex; flex-direction:row">
+    <textarea rows="4">Private key -> @defaultPrivateKey </textarea>
+    <textarea rows="4">Public key -> @defaultPublicKey  </textarea>
+</div>
+
+
+
+<hr />
+
+<div>Difficulty @ViewBag.Difficulty</div>
+
+
+<div style="display:flex; flex-direction:row" style="margin:20px">
+   @*  DEMO SETUP BTN *@
+    <form method="post" asp-action="DemoSetup" style="margin:20px">
+        <input type="submit" value="START DEMO"/>
+    </form>
+
+   @*  NEW START MINE *@
+    <form method="post" asp-action="MinePending" style="margin:20px">
+        <input type="text" name="privateKey" placeholder="Enter private key" />
+        <input type="submit" value="START MINE" />
+    </form>
+
+    <!-- progress bar -->
+    <div id="miningProgress" class="mt-2" style="display:none;">
+        <div class="progress" style="height: 8px;">
+            <div id="progressBarInline"
+                 class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                 role="progressbar"
+                 aria-valuemin="0"
+                 aria-valuemax="100"
+                 style="width: 0%;">
+            </div>
+        </div>
+        <small id="progressText" class="text-muted">⛏️ Mining block...</small>
+        <small id="attemptsText" class="text-muted ms-2">0 attempts/s</small>
+    </div>
+
+    <!-- Difficulty setter -->
+    <form method="post" asp-action="SetDifficulty" style="margin:20px" novalidate>
+        <div class="input-group">
+            <input type="text" name="difficulty" class="form-control" placeholder="set difficulty" />
+            <button type="submit" class="btn btn-primary">Set</button>
+        </div>
+    </form>
+
+</div>
+
+
+<div class="mb-3">
+    <button type="button" class="btn btn-warning mb-2" data-bs-toggle="modal" data-bs-target="#keyModal">
+        Generate PK 
+    </button>
+
+
+    <div class="row g-3">
+
+        @* ========== Transactions, wallets, mempool ======================= *@
+        <hr />
+        <div>
+            <h3>Register Wallet</h3>
+            <form method="post" asp-action="RegisterWallet">
+                <input type="text" name="displayName" placeholder="Enter wallet owner name" />
+                <input type="text" name="publicKeyXml" placeholder="Enter Public Key XML" />
+                <input type="submit" value="Register Wallet">
+            </form>
+        </div>
+
+        <div>
+            @if (wallets != null && wallets.Count > 0)
+            {
+                <table class="table">
+                    <thead>
+                        <th>Address</th>
+                        <th>Name</th>
+                        <th>PublicKey</th>
+                        <th>RegisteredAt</th>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var w in wallets)
+                        {
+                            <tr>
+                                <td>@w.Address</td>
+                                <td>@w.DisplayName</td>
+
+                                <td title="@w.PublicKeyXml" onclick="copyToClipboard('@w.PublicKeyXml', 'Public Key')" style="cursor:pointer;">
+                                    @(w.PublicKeyXml?.Length > 20
+                                            ? w.PublicKeyXml.Substring(0, 20) + "..."
+                                            : w.PublicKeyXml)
+                                </td>
+
+                                <td>@w.RegisteredAt.ToString("u")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <p>No Wallets yeat..</p>
+            }
+        </div>
+
+
+        <hr />
+
+
+        @* Create/ADd Transaction to Memory pool *@
+        <div>
+            <h3>Memory pool</h3>
+            <form method="post" asp-action="CreateTransaction" style="margin:15px">
+                <input name="fromAddress" type="text" placeholder="From Address (ADDR_...)" />
+                <input name="toAddress" type="text" placeholder="To Address (ADDR_...)" />
+                <input name="Amount" type="number" placeholder="Amount" />
+                <input name="fee" type="number" placeholder="Fee" />
+                <input name="privateKey" type="text" placeholder="Private Key" />
+                <input name="note" type="text" placeholder="note" />
+                <input type="submit" value="Add to mempool"/>
+
+            </form>
+        </div>
+
+        @* MEMPOOL DISPLAY *@
+        <div >
+            @if (mempool != null && mempool.Count > 0)
+            {
+                <table class="table">
+                    <thead>
+                    <th>From Address</th>
+                    <th>To Address</th>
+                    <th>Amount</th>
+                    <th>Fee</th>
+                    <th>Note</th>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var m in mempool)
+                        {
+                            <tr>
+                                <td>@m.FromAddress</td>
+                                <td>@m.ToAddress</td>
+                                <td>@m.Amount</td>
+                                <td>@m.Fee</td>
+                                <td>@m.Note</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <p>No Transactions yeat..</p>
+            }
+        </div>
+
+
+        <hr />
+
+        @* ================================= *@
+
+@*         <div class="col-md-6">
+            <!-- add block -->
+            <form method="post" asp-action="Add" id="addBlockForm"  novalidate>
+                <div class="input-group">
+                    <input type="text" name="data" class="form-control" placeholder="Enter block data" value="test" required />
+                    <input type="password"
+                           id="privateKeyInput"
+                           name="privateKey"
+                           class="form-control"
+                           placeholder="Enter private key to sign block"
+                           value="@defaultPrivateKey"
+                           required 
+                    />
+                    <button class="btn btn-outline-secondary" type="button" id="toggleKeyBtn">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                    <button type="submit" class="btn btn-success">Add block</button>
+                </div>
+            </form>
+        </div> *@
+
+        <div class="col-md-6">
+            <!-- search blcock by hash -->
+            <form method="get" asp-action="SearchByHash" novalidate>
+                <div class="input-group">
+                    <input type="text" name="hash" class="form-control" placeholder="Search by hash..." />
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="col-md-6">
+
+
+            <!-- mining controls -->
+@*             <div class="mt-3">
+                <button id="startMineBtn" type="button" class="btn btn-success me-2">
+                    Mine
+                </button>
+
+                <button id="stopMineBtn" type="button" class="btn btn-danger">
+                    Stop
+                </button>
+            </div> *@
+
+@*             <!-- progress bar -->
+            <div id="miningProgress" class="mt-2" style="display:none;">
+                <div class="progress" style="height: 8px;">
+                    <div id="progressBarInline"
+                         class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                         role="progressbar"
+                         aria-valuemin="0"
+                         aria-valuemax="100"
+                         style="width: 0%;">
+                    </div>
+                </div>
+                <small id="progressText" class="text-muted">⛏️ Mining block...</small>
+                <small id="attemptsText" class="text-muted ms-2">0 attempts/s</small>
+            </div> *@
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.Block.Index)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Block.Nonce)
+            </th>
+            <th>
+                Mining Duration
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Block.PrevHash)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Block.Hash)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Block.Timestamp)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Block.Signature)
+            </th>
+            <th>Signature Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @{
+            var blockList = Model.ToList();
+        }
+        @for (int i = 0; i < blockList.Count; i++)
+        {
+            var item = blockList[i];
+            bool isValid = item.IsValid;
+            var rowClass = isValid ? "table-success" : "table-danger";
+
+            <tr class="@rowClass">
+                <td>
+                    @Html.DisplayFor(modelItem => item.Block.Index)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Block.Nonce)
+                </td>
+
+                <td>
+                    @{
+                        var ms = item.Block.MiningDurationMs;
+                        var seconds = ms / 1000.0;
+                    }
+                    @* @($"{seconds:F2} s ({ms} ms)") *@
+                    @($"{seconds:F2} s")
+                </td>
+                <!--  PrevHash -->
+                <td title="@item.Block.PrevHash" onclick="copyToClipboard('@item.Block.PrevHash', 'PrevHash')" style="cursor:pointer;">
+                    @(item.Block.PrevHash?.Length > 16
+                                    ? item.Block.PrevHash.Substring(0, 16) + "..."
+                                    : item.Block.PrevHash)
+                </td>
+                <!--  Hash -->
+                <td title="@item.Block.Hash" onclick="copyToClipboard('@item.Block.Hash', 'Hash')" style="cursor:pointer;">
+                    @(item.Block.Hash?.Length > 16
+                                    ? item.Block.Hash.Substring(0, 16) + "..."
+                                    : item.Block.Hash)
+                </td>
+
+                <td>
+                    @Html.DisplayFor(modelItem => item.Block.Timestamp)
+                </td>
+
+                <!--  Signature -->
+                <td title="@item.Block.Signature" onclick="copyToClipboard('@item.Block.Signature', 'Signature')" style="cursor:pointer;">
+                    @(item.Block.Signature?.Length > 16
+                                    ? item.Block.Signature.Substring(0, 16) + "..."
+                                    : item.Block.Signature)
+                </td>
+                <!--  Signature status -->
+                <td>
+                    <span class="badge @(item.IsSignatureValid ? "bg-success" : "bg-danger")">
+                        @(item.IsSignatureValid ? "Valid" : "Invalid")
+                    </span>
+                </td>
+
+                <td>
+                    @Html.ActionLink("Edit", "Edit", new { index = item.Block.Index }) |
+                    @Html.ActionLink("Details", "Details", new { id = item.Block.Id }) |
+                    @Html.ActionLink("Delete", "Delete", new { /* id=item.PrimaryKey */ })
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+
+<!-- Toast container -->
+<div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1080;">
+    <div id="toastMessage" class="toast align-items-center border-0 text-white bg-success" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+               @*  text here *@
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+
+<!-- Modal for generating and display private key -->
+@await Html.PartialAsync("_KeyModalPartial")
+
+
+@section Scripts {
+    <script>
+
+
+        let isMining = false;   // флаг для майнинга
+
+        // =================== SignalR Connection для Mining ===================
+
+        // Инициализируем соединение с хабом майнинга (MiningHub.cs на сервере)
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/miningHub")    // URL хаба на сервере
+            .build();
+
+        connection.start();
+
+        //============================================================================
+
+
+        // Показ тоста с сообщением
+        function showToast(message, isError = false) {
+            const toastEl = document.getElementById('toastMessage');
+            const toastBody = toastEl.querySelector('.toast-body');
+            toastBody.textContent = message;
+
+            // меняем цвет в зависимости от типа
+            toastEl.classList.remove('bg-success', 'bg-danger');
+            toastEl.classList.add(isError ? 'bg-danger' : 'bg-success');
+
+            const toast = new bootstrap.Toast(toastEl, { delay: 3000 }); // 3 секунды
+            toast.show();
+        }
+
+        // Если сервер передал сообщение — показать
+        @if (ViewBag.AlertMessage != null)
+        {
+                <text>
+                    document.addEventListener('DOMContentLoaded', () => {
+                        showToast("@ViewBag.AlertMessage", "@ViewBag.AlertType" === "danger");
+                    });
+                </text>
+        }
+
+
+        // Инициализация тултипов (Bootstrap Tooltips) для всех элементов с атрибутом title
+        document.addEventListener('DOMContentLoaded', function () {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+            tooltipTriggerList.forEach(function (el) {
+                new bootstrap.Tooltip(el);
+            });
+        });
+
+        // Копирует текст в буфер и показывает toast-уведомление
+        function copyToClipboard(text, label) {
+            navigator.clipboard.writeText(text)
+                .then(() => showToast(`${label} copied to clipboard`))
+                .catch(() => showToast("Failed to copy", true));
+        }
+
+        // пееключатель видимости для приватного ключа в Ручном добалвении Add Block  (удалить после удаления механизма ручного добавления блока?)
+        // const toggleBtn = document.getElementById('toggleKeyBtn');
+        // if (toggleBtn) {
+        //     toggleBtn.addEventListener('click', function () {
+        //         const input = document.getElementById('privateKeyInput');
+        //         const icon = this.querySelector('i');
+
+        //         if (input.type === 'password') {
+        //             input.type = 'text';
+        //             icon.classList.replace('bi-eye', 'bi-eye-slash');
+        //         } else {
+        //             input.type = 'password';
+        //             icon.classList.replace('bi-eye-slash', 'bi-eye');
+        //         }
+        //     });
+        // }
+
+
+        // Получение прогресс майнинга из SignalR и обновляем progress bar
+        connection.on("MiningProgress", (percent) => {
+            if (!isMining) return; // игнорим обновления после Stop
+
+            const bar = document.getElementById("progressBarInline");
+            const container = document.getElementById("miningProgress");
+
+            container.style.display = "block";
+
+            // -1 = сервер просигналил сброс прогресса (остановка)
+            if (percent === -1) {
+                bar.style.width = "0%";
+                return;
+            }
+
+            bar.style.width = percent + "%";
+
+            // 100% = блок намайнен → обновляем UI
+            if (percent === 100) {
+                isMining = false;
+                setTimeout(() => location.reload(), 400);
+            }
+        });
+
+        // Получение и отображение скорости перебора Nonce (attempts/sec) из SignalR
+        connection.on("MiningAttemptsPerSecond", (aps) => {
+            if (!isMining) return;
+            const el = document.getElementById("attemptsText");
+            el.textContent = `${aps.toLocaleString()} attempts/s`;
+        });
+
+
+        // // ыtart mining and disable Add button
+        // document.getElementById("startMineBtn").addEventListener("click", () => {
+        //     const data = document.querySelector("[name='data']").value;
+        //     const privateKey = document.querySelector("[name='privateKey']").value;
+
+        //     if (!privateKey.trim()) {
+        //         showToast("Enter private key before mining!", true);
+        //         return;
+        //     }
+
+        //     if (isMining) return; // предотвращаем повторный клик
+        //     isMining = true;
+
+        //     document.querySelector("#addBlockForm button[type='submit']").disabled = true;
+
+        //     fetch("/BlockChain/StartMining", {
+        //         method: "POST",
+        //         body: new URLSearchParams({ data, privateKey })
+        //     });
+        // });
+
+
+
+        // // Старт майнинга(Старая кнопка асинк): запрашиваем приватный ключ, дергаем StartMining (SignalR)   <-  Удалить потом?
+        // document.getElementById("startMineBtn").addEventListener("click", () => {
+        //     const privateKey = prompt("Enter miner private key:");
+
+        //     if (!privateKey) {
+        //         showToast("Private key required", true);
+        //         return;
+        //     }
+
+        //     if (isMining) return;
+        //     isMining = true;
+
+        //     fetch("/BlockChain/StartMining", {
+        //         method: "POST",
+        //         body: new URLSearchParams({ privateKey })
+        //     })
+        //     .then(() => showToast("Mining started..."))
+        //     .catch(() => showToast("Mining error", true));
+        // });
+
+
+        // NEW UI - v0.2
+        // START MINE PRogress bar через SIgnalR
+        document.querySelector("form[action$='MinePending'] input[name='privateKey']")
+            .closest("form")
+            .addEventListener("submit", function (e) {
+                e.preventDefault(); // блокируем обычный POST
+
+                const privateKey = this.querySelector("input[name='privateKey']").value;
+                if (!privateKey.trim()) {
+                    showToast("Enter private key before mining!", true);
+                    return;
+                }
+
+                if (isMining) return;
+                isMining = true;
+
+                // показываем прогресс-бар
+                document.getElementById("miningProgress").style.display = "block";
+                document.getElementById("progressBarInline").style.width = "0%";
+
+                fetch("/BlockChain/StartMining", {
+                    method: "POST",
+                    body: new URLSearchParams({ privateKey })
+                })
+                // .then(() => showToast("Mining started..."))
+                // .catch(() => showToast("Mining error", true));
+        });
+
+
+    </script>
+}

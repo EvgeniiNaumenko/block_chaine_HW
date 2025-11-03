@@ -1,0 +1,30 @@
+﻿@model BlockChain_FP_ITStep.Models.Block
+
+@{
+    ViewData["Title"] = "Block Details";
+}
+
+<h2 class="mb-3">Block Details</h2>
+
+@if (Model == null)
+{
+    <div class="alert alert-danger">Block not found.</div>
+}
+else
+{
+    @Html.DisplayFor(m => m)   <!--  DisplayTemplate Block.cshtml -->
+}
+
+<a asp-action="Index" class="btn btn-secondary mt-3">← Back to list</a>
+
+
+
+@section Scripts {
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text)
+                .then(() => console.log("Copied"))
+                .catch(err => console.error("Copy failed", err));
+        }
+    </script>
+}
