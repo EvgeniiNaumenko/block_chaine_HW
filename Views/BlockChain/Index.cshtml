@@ -308,7 +308,7 @@ else
                         🔍 Подробно
                     </a>
 
-                    <form asp-action="Delete" method="post" style="display:inline;">
+                    <form asp-action="DeleteBlock" method="post" style="display:inline;">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="index" value="@item.Block.Index" />
                         <button type="submit" class="btn btn-sm btn-outline-danger"
