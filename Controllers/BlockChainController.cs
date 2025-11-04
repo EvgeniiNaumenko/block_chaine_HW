@@ -8,62 +8,47 @@ namespace BlockChain_FP_ITStep.Controllers
     {
         private readonly BlockChainService _bcService = bcService;
 
+        // Источник токена отмены — используется для остановки майнинга
         public static CancellationTokenSource? _cts;
 
+
+        // ====================== ГЛАВНАЯ СТРАНИЦА ======================
         public async Task<IActionResult> Index()
         {
+            // Сообщения об успехе / ошибке через TempData
             ViewBag.AlertMessage = TempData["AlertMessage"];
             ViewBag.AlertType = TempData["AlertType"];
 
+            // Получаем список валидированных блоков и проверку подписей
             var validatedBlocks = await _bcService.GetValidatedBlocksAsync();
             var isSignatureValid = await _bcService.GetSignatureValidationAsync();
 
+            // Формируем модель для отображения в Index.cshtml
             var model = validatedBlocks.Select((block, i) => new BlockValidationViewModel
             {
                 Block = block.Block,
-                IsValid = block.IsValid,                        // цепочка
-                IsSignatureValid = isSignatureValid[i].IsValid  // подпись
+                IsValid = block.IsValid,
+                IsSignatureValid = isSignatureValid[i].IsValid
             }).ToList();
 
+            // Проверяем целостность цепочки
             ViewBag.IsChainValid = model.All(b => b.IsValid);
             ViewBag.Difficulty = BlockChainService.Difficulty;
 
-            // TODO Add Public key to View ?
+            // Mempool — непопавшие в блок транзакции
             ViewBag.MempoolCount = _bcService.Mempool.Count;
             ViewBag.Mempool = _bcService.Mempool;
+
+            // Кошельки и балансы
             ViewBag.Wallets = _bcService.Wallets.Values.ToList();
+            ViewBag.Balances = await _bcService.GetBalancesAsync(includeMempool: true);
+
             return View(model);
         }
 
 
-        // Убрать после удаления ручного добавленяи блоков в UI
-        //[HttpPost]
-        //public async Task<IActionResult> Add(string data, string privateKey)
-        //{
-        //    if (string.IsNullOrWhiteSpace(data) || string.IsNullOrWhiteSpace(privateKey))
-        //    {
-        //        TempData["AlertMessage"] = "Please enter both data and private key.";
-        //        TempData["AlertType"] = "danger";
-        //        return RedirectToAction(nameof(Index));
-        //    }
+        // ====================== ГЕНЕРАЦИЯ КЛЮЧЕЙ ======================
 
-        //    try
-        //    {
-        //        long ms = await _bcService.AddBlockAsync(data, privateKey);
-        //        TempData["AlertMessage"] = "Block successfully added.";
-        //        TempData["AlertType"] = "success";
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        TempData["AlertMessage"] = "Error: " + ex.Message;
-        //        TempData["AlertType"] = "danger";
-        //    }
-
-        //    return RedirectToAction("Index");
-        //}
-
-
-        // маршрут для генерации ключа
         [HttpGet]
         public IActionResult GenerateKey()
         {
@@ -87,6 +72,8 @@ namespace BlockChain_FP_ITStep.Controllers
         }
 
 
+        // ====================== РЕДАКТИРОВАНИЕ БЛОКОВ ======================
+
         [HttpGet]
         public async Task<IActionResult> Edit(int index)
         {
@@ -103,25 +90,38 @@ namespace BlockChain_FP_ITStep.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        [HttpGet]
-        public async Task<IActionResult> SearchByHash(string hash)
+
+        // ====================== УДАЛЕНИЕ БЛОКОВ ======================
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteBlock(int index)
         {
-            if (string.IsNullOrWhiteSpace(hash))
-                return RedirectToAction(nameof(Index));
-
-            var blocks = await _bcService.GetAllBlocksAsync();
-            var found = blocks.FirstOrDefault(b => b.Hash.Equals(hash, StringComparison.OrdinalIgnoreCase));    //  Ordinal -> Сравнивает побайтово символы, без учёта языка и культуры.  + IgnoreCase
-
-            if (found == null)
+            try
             {
-                ViewBag.SearchMessage = "Block not found.";
-                ViewBag.IsChainValid = await _bcService.IsValidAsync();
-                var validatedBlocks = await _bcService.GetValidatedBlocksAsync();
-                return View("Index", validatedBlocks);
+                bool result = await _bcService.DeleteBlockAsync(index);
+
+                if (result)
+                {
+                    TempData["AlertMessage"] = $"✅ Блок с индексом {index} успешно удалён.";
+                    TempData["AlertType"] = "success";
+                }
+                else
+                {
+                    TempData["AlertMessage"] = $"❌ Блок с индексом {index} не найден.";
+                    TempData["AlertType"] = "danger";
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["AlertMessage"] = $"⚠️ Ошибка при удалении блока: {ex.Message}";
+                TempData["AlertType"] = "danger";
             }
 
-            return View(found);
+            return RedirectToAction(nameof(Index));
         }
+
+
+        // ====================== ДЕТАЛИ БЛОКА ======================
 
         [HttpGet]
         public async Task<IActionResult> Details(int id)
@@ -131,16 +131,21 @@ namespace BlockChain_FP_ITStep.Controllers
             return View(block);
         }
 
+
+        // ====================== СЛОЖНОСТЬ МАЙНИНГА ======================
+
         [HttpPost]
         public IActionResult SetDifficulty(int difficulty)
         {
             if (difficulty < 1) difficulty = 1;
             if (difficulty > 6) difficulty = 6;
-            BlockChainService.Difficulty =  difficulty;
+            BlockChainService.Difficulty = difficulty;
             return RedirectToAction("Index");
         }
 
-        // Mining
+
+        // ====================== МАЙНИНГ ======================
+
         [HttpPost]
         public IActionResult StartMining(string privateKey)
         {
@@ -150,6 +155,7 @@ namespace BlockChain_FP_ITStep.Controllers
             _cts = new CancellationTokenSource();
             var progress = new Progress<int>(_ => { });
 
+            // Запускаем майнинг в отдельном потоке
             Task.Run(async () =>
             {
                 await _bcService.MineAsync(privateKey, _cts.Token, progress);
@@ -165,12 +171,18 @@ namespace BlockChain_FP_ITStep.Controllers
             return Ok();
         }
 
+
+        // ====================== РЕГИСТРАЦИЯ КОШЕЛЬКА ======================
+
         [HttpPost]
         public IActionResult RegisterWallet(string publicKeyXml, string displayName)
         {
             var wallet = _bcService.RegisterWallet(publicKeyXml, displayName);
             return RedirectToAction("Index");
         }
+
+
+        // ====================== СОЗДАНИЕ ТРАНЗАКЦИИ ======================
 
         [HttpPost]
         public IActionResult CreateTransaction(string fromAddress, string toAddress, decimal amount, decimal fee, string privateKey, string note)
@@ -184,6 +196,7 @@ namespace BlockChain_FP_ITStep.Controllers
                 Note = note
             };
 
+            // Подписываем транзакцию
             tx.Signature = BlockChainService.SignPayload(tx.CanonicalPayload(), privateKey);
 
             try
@@ -197,6 +210,9 @@ namespace BlockChain_FP_ITStep.Controllers
 
             return RedirectToAction("Index");
         }
+
+
+        // ====================== МАЙНИНГ НЕПОДТВЕРЖДЕННЫХ ТРАНЗАКЦИЙ ======================
 
         [HttpPost]
         public async Task<IActionResult> MinePending(string privateKey)
@@ -213,12 +229,17 @@ namespace BlockChain_FP_ITStep.Controllers
             return RedirectToAction("Index");
         }
 
+
+        // ====================== DEMO НАСТРОЙКА ======================
+
         [HttpPost]
         public IActionResult DemoSetup()
         {
-            var (Ivan,  prvKey)  = _bcService.CreateWallet("Ivan");
+            // Создаем два кошелька
+            var (Ivan, prvKey) = _bcService.CreateWallet("Ivan");
             var (Taras, prvKey2) = _bcService.CreateWallet("Taras");
 
+            // Пример перевода между ними
             decimal amount = 10.0m;
             decimal fee = 0.5m;
 
@@ -231,15 +252,13 @@ namespace BlockChain_FP_ITStep.Controllers
                 Note = "Payment for services"
             };
 
+            // Подпись транзакции
             var sig = BlockChainService.SignPayload(tx.CanonicalPayload(), prvKey);
-
             tx.Signature = sig;
 
             _bcService.CreateTransaction(tx);
 
             return RedirectToAction("Index");
         }
-
-
     }
 }

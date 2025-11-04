@@ -5,19 +5,36 @@ namespace BlockChain_FP_ITStep.Models
 {
     public class Transaction
     {
+        // Адрес отправителя
         [Required]
         public string FromAddress { get; set; } = string.Empty;
+
+        // Адрес получателя
         [Required]
-        public string  ToAddress { get; set; } = string.Empty;
+        public string ToAddress { get; set; } = string.Empty;
+
+        // Сумма перевода
         public decimal Amount { get; set; }
+
+        // Комиссия за транзакцию
         public decimal Fee { get; set; }
-        public string  Signature { get; set; } = string.Empty;
+
+        // Цифровая подпись (подтверждает подлинность транзакции)
+        public string Signature { get; set; } = string.Empty;
+
+        // Необязательное примечание или комментарий к транзакции
         public string? Note { get; set; }
 
-        // Метод унификации строки, которую будем использовать в транзакциях? и также потом как часть Подписи?
+
+        // Метод создаёт стандартную ("каноническую") строку для подписи и проверки транзакции
+        // Формат: "From|To|Amount|Fee"
         public string CanonicalPayload()
         {
-            return string.Format(CultureInfo.InvariantCulture, "{0}|{1}|{2:0.########}|{3:0.########}", FromAddress, ToAddress, Amount, Fee);
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                "{0}|{1}|{2:0.########}|{3:0.########}",
+                FromAddress, ToAddress, Amount, Fee
+            );
         }
     }
 }
