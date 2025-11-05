@@ -5,6 +5,7 @@ namespace BlockChain_FP_ITStep.Models
 {
     public class Transaction
     {
+        public int Id { get; set; }
         // Адрес отправителя
         [Required]
         public string FromAddress { get; set; } = string.Empty;
@@ -15,6 +16,9 @@ namespace BlockChain_FP_ITStep.Models
 
         // Сумма перевода
         public decimal Amount { get; set; }
+
+        public Block Block { get; set; } = null;
+        public int BlockId { get; set; }
 
         // Комиссия за транзакцию
         public decimal Fee { get; set; }

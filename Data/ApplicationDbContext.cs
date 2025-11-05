@@ -10,6 +10,8 @@ namespace BlockChain_FP_ITStep.Data
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {
+            //Database.EnsureDeleted();
+            Database.EnsureCreated();
         }
 
         public DbSet<Block> Blocks { get; set; } = null!;
@@ -21,8 +23,7 @@ namespace BlockChain_FP_ITStep.Data
             modelBuilder.Entity<Block>()
                 .HasIndex(b => b.Index);
 
-            // Транзакции не будем ложить в БД.  !?
-            modelBuilder.Ignore<Transaction>();
+          
 
 
         }

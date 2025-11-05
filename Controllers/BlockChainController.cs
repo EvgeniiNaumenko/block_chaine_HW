@@ -233,32 +233,36 @@ namespace BlockChain_FP_ITStep.Controllers
         // ====================== DEMO НАСТРОЙКА ======================
 
         [HttpPost]
-        public IActionResult DemoSetup()
+        public async Task<IActionResult> DemoSetup()
         {
             // Создаем два кошелька
-            var (Ivan, prvKey) = _bcService.CreateWallet("Ivan");
-            var (Taras, prvKey2) = _bcService.CreateWallet("Taras");
-
-            // Пример перевода между ними
-            decimal amount = 10.0m;
+            var (User1, prvKey) = _bcService.CreateWallet("Ivan");
+            var (User2, prvey2) = _bcService.CreateWallet("Taras");
+            // Майним 15 раз для каждого кошелька
+            for (int i = 0; i < 15; i++)
+            {
+               MinePending(prvKey);
+                MinePending(prvey2);
+            }
+            // Перевод между кошельками
+            decimal amount = 5.0m;
             decimal fee = 0.5m;
 
             var tx = new Models.Transaction
             {
-                FromAddress = Ivan.Address,
-                ToAddress = Taras.Address,
+                FromAddress = User1.Address,
+                ToAddress = User2.Address,
                 Amount = amount,
                 Fee = fee,
                 Note = "Payment for services"
             };
 
             // Подпись транзакции
-            var sig = BlockChainService.SignPayload(tx.CanonicalPayload(), prvKey);
-            tx.Signature = sig;
-
+            tx.Signature = BlockChainService.SignPayload(tx.CanonicalPayload(), prvKey);
             _bcService.CreateTransaction(tx);
 
             return RedirectToAction("Index");
         }
+
     }
 }

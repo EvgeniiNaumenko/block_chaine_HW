@@ -72,7 +72,7 @@ namespace BlockChain_FP_ITStep.Services
         }
 
         // Создание новой транзакции (и проверка её подписи)
-        public void CreateTransaction(Transaction transaction)
+        public async void CreateTransaction(Transaction transaction)
         {
             var rsa = RSA.Create();
             var wallet = Wallets[transaction.FromAddress];       // Получаем кошелёк отправителя
@@ -85,6 +85,15 @@ namespace BlockChain_FP_ITStep.Services
             if (!rsa.VerifyData(payload, sig, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1))
                 throw new Exception("Invalid Transaction Signature");
 
+
+
+            var balances = await GetBalancesAsync(true);
+            if (!balances.TryGetValue(transaction.FromAddress, out var fromBal))
+                fromBal = 0;
+            var requiredAmount = transaction.Amount + transaction.Fee;
+            if (fromBal < requiredAmount)
+                throw new Exception("insufficient balance");
+
             // Добавляем в мемпул
             Mempool.Add(transaction);
         }
@@ -93,7 +102,7 @@ namespace BlockChain_FP_ITStep.Services
         public async Task<Block> MinePendingAsync(string privateKeyXml)
         {
             using var db = _dbFactory.CreateDbContext();
-            var prevBlock = await db.Blocks.OrderBy(b => b.Index).LastAsync();   // Предыдущий блок
+            var prevBlock = await db.Blocks.OrderBy(b => b.Index).LastOrDefaultAsync();   // Предыдущий блок
 
             // Из приватного ключа получаем публичный
             using var rsa = RSA.Create();
@@ -196,7 +205,7 @@ namespace BlockChain_FP_ITStep.Services
         public async Task<List<Block>> GetAllBlocksAsync()
         {
             using var db = _dbFactory.CreateDbContext();
-            return await db.Blocks.OrderBy(b => b.Index).ToListAsync();
+            return await db.Blocks.OrderBy(b => b.Index).Include(x=>x.Transactions).ToListAsync();
         }
 
         // Удаление блока по индексу (осторожно!)
@@ -437,14 +446,18 @@ namespace BlockChain_FP_ITStep.Services
             foreach (var block in blocks)
             {
                 foreach (var tran in block.Transactions)
+                {
                     ApplyTransactionToBallaces(balances, tran);
+                }
             }
 
             // При необходимости — добавляем транзакции из мемпула
             if (includeMempool)
             {
                 foreach (var tran in Mempool)
+                {
                     ApplyTransactionToBallaces(balances, tran);
+                }
             }
 
             return balances;
