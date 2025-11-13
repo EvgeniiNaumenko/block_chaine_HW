@@ -8,47 +8,54 @@ namespace BlockChain_FP_ITStep.Controllers
     {
         private readonly BlockChainService _bcService = bcService;
 
-        // Источник токена отмены — используется для остановки майнинга
         public static CancellationTokenSource? _cts;
 
-
-        // ====================== ГЛАВНАЯ СТРАНИЦА ======================
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string nodeId = "A")
         {
-            // Сообщения об успехе / ошибке через TempData
             ViewBag.AlertMessage = TempData["AlertMessage"];
             ViewBag.AlertType = TempData["AlertType"];
 
-            // Получаем список валидированных блоков и проверку подписей
-            var validatedBlocks = await _bcService.GetValidatedBlocksAsync();
-            var isSignatureValid = await _bcService.GetSignatureValidationAsync();
+            // Валидированные блоки и статус подписи
+            var validatedBlocks = await _bcService.GetValidatedBlocksAsync(nodeId);
+            var isSignatureValid = await _bcService.GetSignatureValidationAsync(nodeId);
 
-            // Формируем модель для отображения в Index.cshtml
             var model = validatedBlocks.Select((block, i) => new BlockValidationViewModel
             {
                 Block = block.Block,
-                IsValid = block.IsValid,
-                IsSignatureValid = isSignatureValid[i].IsValid
+                IsValid = block.IsValid,                            // валидность цепочки
+                IsSignatureValid = isSignatureValid[i].IsValid      // валидность подписи
             }).ToList();
 
-            // Проверяем целостность цепочки
+            // Добавляем reward для каждого блока
+            foreach (var vm in model)
+                vm.Reward = _bcService.GetBlockReward(vm.Block.Index);
+
+            // reward для следующего блока
+            var lastIndex = model.Max(m => m.Block.Index);
+            ViewBag.CurrentReward = _bcService.GetBlockReward(lastIndex + 1);
+
             ViewBag.IsChainValid = model.All(b => b.IsValid);
             ViewBag.Difficulty = BlockChainService.Difficulty;
 
-            // Mempool — непопавшие в блок транзакции
-            ViewBag.MempoolCount = _bcService.Mempool.Count;
-            ViewBag.Mempool = _bcService.Mempool;
-
-            // Кошельки и балансы
+            // Mempool и балансы
+            ViewBag.Mempool = _bcService.Mempool.Where(t => t.NodeId == nodeId).ToList();
+            ViewBag.MempoolCount = ((List<Transaction>)ViewBag.Mempool).Count;
             ViewBag.Wallets = _bcService.Wallets.Values.ToList();
-            ViewBag.Balances = await _bcService.GetBalancesAsync(includeMempool: true);
+            ViewBag.Balances = await _bcService.GetBalances(nodeId, true);
+
+            // Список нод и текущая нода
+            ViewBag.Nodes = await _bcService.GetNodeIdsAsync();
+            ViewBag.NodeId = nodeId;
+
+            // ==================== Передаем ключи ноды ====================
+            ViewBag.NodePrivateKey = _bcService.GetNodePrivateKey(nodeId);
+            ViewBag.NodePublicKey = _bcService.GetNodePublicKey(nodeId);
 
             return View(model);
         }
 
 
-        // ====================== ГЕНЕРАЦИЯ КЛЮЧЕЙ ======================
-
+        // маршрут для генерации ключа
         [HttpGet]
         public IActionResult GenerateKey()
         {
@@ -72,8 +79,6 @@ namespace BlockChain_FP_ITStep.Controllers
         }
 
 
-        // ====================== РЕДАКТИРОВАНИЕ БЛОКОВ ======================
-
         [HttpGet]
         public async Task<IActionResult> Edit(int index)
         {
@@ -90,49 +95,38 @@ namespace BlockChain_FP_ITStep.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-
-        // ====================== УДАЛЕНИЕ БЛОКОВ ======================
-
-        [HttpPost]
-        public async Task<IActionResult> DeleteBlock(int index)
+        [HttpGet]
+        public async Task<IActionResult> SearchByHash(string hash, string nodeId = "A")
         {
-            try
-            {
-                bool result = await _bcService.DeleteBlockAsync(index);
+            if (string.IsNullOrWhiteSpace(hash))
+                return RedirectToAction(nameof(Index));
 
-                if (result)
-                {
-                    TempData["AlertMessage"] = $"✅ Блок с индексом {index} успешно удалён.";
-                    TempData["AlertType"] = "success";
-                }
-                else
-                {
-                    TempData["AlertMessage"] = $"❌ Блок с индексом {index} не найден.";
-                    TempData["AlertType"] = "danger";
-                }
-            }
-            catch (Exception ex)
+            var blocks = await _bcService.GetAllBlocksAsync(nodeId);
+            var found = blocks.FirstOrDefault(b => b.Hash.Equals(hash, StringComparison.OrdinalIgnoreCase));    //  Ordinal -> Сравнивает побайтово символы, без учёта языка и культуры.  + IgnoreCase
+
+            if (found == null)
             {
-                TempData["AlertMessage"] = $"⚠️ Ошибка при удалении блока: {ex.Message}";
-                TempData["AlertType"] = "danger";
+                ViewBag.SearchMessage = "Block not found.";
+                ViewBag.IsChainValid = await _bcService.IsValidAsync(nodeId);
+                var validatedBlocks = await _bcService.GetValidatedBlocksAsync(nodeId);
+                return View("Index", validatedBlocks);
             }
 
-            return RedirectToAction(nameof(Index));
+            return View(found);
         }
-
-
-        // ====================== ДЕТАЛИ БЛОКА ======================
 
         [HttpGet]
-        public async Task<IActionResult> Details(int id)
+        public async Task<IActionResult> Details(int id, string nodeId = "A")
         {
-            var block = await _bcService.GetBlockByIdAsync(id);
+            var block = await _bcService.GetBlockByIdWithTransactionsAsync(id);
             if (block == null) return NotFound();
+
+            // передаем индекс последнего блока для подсчёта подтверждений
+            var blocks = await _bcService.GetAllBlocksAsync(nodeId);
+            ViewBag.LastBlockIndex = blocks.Max(b => b.Index);
+
             return View(block);
         }
-
-
-        // ====================== СЛОЖНОСТЬ МАЙНИНГА ======================
 
         [HttpPost]
         public IActionResult SetDifficulty(int difficulty)
@@ -144,26 +138,6 @@ namespace BlockChain_FP_ITStep.Controllers
         }
 
 
-        // ====================== МАЙНИНГ ======================
-
-        [HttpPost]
-        public IActionResult StartMining(string privateKey)
-        {
-            if (string.IsNullOrWhiteSpace(privateKey))
-                return BadRequest("Private key required");
-
-            _cts = new CancellationTokenSource();
-            var progress = new Progress<int>(_ => { });
-
-            // Запускаем майнинг в отдельном потоке
-            Task.Run(async () =>
-            {
-                await _bcService.MineAsync(privateKey, _cts.Token, progress);
-            });
-
-            return Ok();
-        }
-
         [HttpPost]
         public IActionResult StopMining()
         {
@@ -171,24 +145,20 @@ namespace BlockChain_FP_ITStep.Controllers
             return Ok();
         }
 
-
-        // ====================== РЕГИСТРАЦИЯ КОШЕЛЬКА ======================
-
         [HttpPost]
-        public IActionResult RegisterWallet(string publicKeyXml, string displayName)
+        public IActionResult RegisterWallet(string publicKeyXml, string displayName, string nodeId)
         {
-            var wallet = _bcService.RegisterWallet(publicKeyXml, displayName);
-            return RedirectToAction("Index");
+            _bcService.RegisterWallet(publicKeyXml, displayName);
+
+            return RedirectToAction("Index", new { nodeId });
         }
 
-
-        // ====================== СОЗДАНИЕ ТРАНЗАКЦИИ ======================
-
         [HttpPost]
-        public IActionResult CreateTransaction(string fromAddress, string toAddress, decimal amount, decimal fee, string privateKey, string note)
+        public IActionResult CreateTransaction(string fromAddress, string toAddress, decimal amount, decimal fee, string privateKey, string note, string nodeId = "A")
         {
-            var tx = new Models.Transaction
+            var tx = new Transaction
             {
+                NodeId = nodeId,
                 FromAddress = fromAddress,
                 ToAddress = toAddress,
                 Amount = amount,
@@ -196,73 +166,81 @@ namespace BlockChain_FP_ITStep.Controllers
                 Note = note
             };
 
-            // Подписываем транзакцию
             tx.Signature = BlockChainService.SignPayload(tx.CanonicalPayload(), privateKey);
 
             try
             {
-                _bcService.CreateTransaction(tx);
+                _bcService.CreateTransaction(tx, nodeId);
             }
             catch (Exception ex)
             {
                 TempData["Error"] = ex.Message;
             }
 
-            return RedirectToAction("Index");
+            return RedirectToAction("Index", new { nodeId });
         }
 
-
-        // ====================== МАЙНИНГ НЕПОДТВЕРЖДЕННЫХ ТРАНЗАКЦИЙ ======================
-
         [HttpPost]
-        public async Task<IActionResult> MinePending(string privateKey)
+        public async Task<IActionResult> MinePending(string privateKey, string nodeId = "A")
         {
             try
             {
-                await _bcService.MinePendingAsync(privateKey);
+                await _bcService.MinePendingAsync(privateKey, nodeId);
+                await _bcService.BroadcastChainAsync(nodeId);
             }
             catch (Exception ex)
             {
-                TempData["Error"] = ex.Message;
+                TempData["Error"] = ex.InnerException?.Message ?? ex.Message;
+                return RedirectToAction("Index", new { nodeId });
             }
 
-            return RedirectToAction("Index");
+            return RedirectToAction("Index", new { nodeId });
         }
-
-
-        // ====================== DEMO НАСТРОЙКА ======================
 
         [HttpPost]
         public async Task<IActionResult> DemoSetup()
         {
-            // Создаем два кошелька
-            var (User1, prvKey) = _bcService.CreateWallet("Ivan");
-            var (User2, prvey2) = _bcService.CreateWallet("Taras");
-            // Майним 15 раз для каждого кошелька
-            for (int i = 0; i < 15; i++)
-            {
-               MinePending(prvKey);
-                MinePending(prvey2);
-            }
-            // Перевод между кошельками
-            decimal amount = 5.0m;
-            decimal fee = 0.5m;
+            var (Ivan, prvKey) = _bcService.CreateWallet("Ivan");
+            var (Taras, prvKey2) = _bcService.CreateWallet("Taras");
+            var nodeId = "A";
 
-            var tx = new Models.Transaction
+            decimal amount = 3.0m;
+            decimal fee = 0.1m;
+
+            var tx = new Transaction
             {
-                FromAddress = User1.Address,
-                ToAddress = User2.Address,
+                NodeId = nodeId,
+                FromAddress = Ivan.Address,
+                ToAddress = Taras.Address,
                 Amount = amount,
                 Fee = fee,
                 Note = "Payment for services"
             };
 
-            // Подпись транзакции
-            tx.Signature = BlockChainService.SignPayload(tx.CanonicalPayload(), prvKey);
-            _bcService.CreateTransaction(tx);
+            for (int i = 0; i < 5; i++)
+            {
+                await MinePending(prvKey, nodeId);
+                await MinePending(prvKey2, nodeId);
+            }
 
-            return RedirectToAction("Index");
+            var sig = BlockChainService.SignPayload(tx.CanonicalPayload(), prvKey);
+            tx.Signature = sig;
+
+            try
+            {
+                _bcService.CreateTransaction(tx, nodeId);
+            }
+            catch (Exception)
+            {
+                TempData["Error"] = "Demo transaction failed.";
+                return RedirectToAction("Index", new { nodeId });
+            }
+
+            TempData["Success"] = "Demo completed!";
+            return RedirectToAction("Index", new { nodeId });
         }
+
+
 
     }
 }

@@ -1,0 +1,206 @@
+﻿@model List<BlockChain_FP_ITStep.Models.ViewModel.WalletTransactionViewModel>
+
+@{
+    ViewData["Title"] = "Wallet";
+    var wallet = ViewBag.Wallet;
+    string address = ViewBag.Address;
+    decimal balance = ViewBag.Balance;
+}
+
+<style>
+    body {
+        background-color: #0d1117;
+        color: #e6edf3;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    h1, h2, h3, h4, h5 {
+        color: #58a6ff;
+    }
+
+    .card {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        box-shadow: 0 0 8px rgba(88,166,255,0.15);
+    }
+
+    .table {
+        color: #c9d1d9;
+    }
+
+    .table-dark th, .table-dark td {
+        vertical-align: middle;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #21262d;
+    }
+
+    .table-success {
+        background-color: #1b4729 !important;
+    }
+
+    .table-danger {
+        background-color: #4b1b1b !important;
+    }
+
+    .table-warning {
+        background-color: #5a4e2e !important;
+    }
+
+    .btn-primary {
+        background-color: #238636;
+        border: none;
+        color: #fff;
+    }
+
+        .btn-primary:hover {
+            background-color: #2ea043;
+        }
+
+    .btn-secondary {
+        background-color: #30363d;
+        border: none;
+        color: #e6edf3;
+    }
+
+        .btn-secondary:hover {
+            background-color: #484f58;
+        }
+
+    .text-success {
+        color: #3fb950 !important;
+    }
+
+    .badge-address {
+        background-color: #21262d;
+        border: 1px solid #30363d;
+        color: #e6edf3;
+        font-family: monospace;
+    }
+
+    input.form-control,
+    textarea.form-control {
+        background-color: #21262d;
+        border: 1px solid #30363d;
+        color: #e6edf3;
+    }
+
+        input.form-control::placeholder,
+        textarea.form-control::placeholder {
+            color: #8b949e;
+        }
+
+    .text-muted {
+        color: #8b949e !important;
+    }
+
+    .toast-header {
+        background-color: #238636;
+        color: #fff;
+    }
+
+    .toast-body {
+        background-color: #161b22;
+        color: #e6edf3;
+    }
+</style>
+
+<div class="container py-4">
+
+    <div class="card shadow-sm mb-4 p-3">
+        <h3 class="mb-3"><i class="bi bi-wallet2 me-2"></i> Wallet Details</h3>
+
+        <div class="mb-3 d-flex align-items-center flex-wrap">
+            <span class="fw-bold me-2">Address:</span>
+            <span class="badge badge-address">@address</span>
+            <button class="btn btn-sm btn-secondary ms-2 mt-2 mt-sm-0"
+                    onclick="navigator.clipboard.writeText('@address'); showToast('Address copied!')">
+                <i class="bi bi-clipboard"></i>
+            </button>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col-md-4 mb-2 mb-md-0">
+                <span class="fw-semibold text-muted">Name</span>
+                <div>@(wallet?.DisplayName ?? "-")</div>
+            </div>
+
+            <div class="col-md-4 mb-2 mb-md-0">
+                <span class="fw-semibold text-muted">Balance</span>
+                <div class="fs-5 fw-bold text-success">@balance ₿</div>
+            </div>
+
+            <div class="col-md-4">
+                <a asp-controller="BlockChain" asp-action="Index"
+                   class="btn btn-secondary w-100 mt-3 mt-md-0">
+                    <i class="bi bi-arrow-left"></i> Back to Chain
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-3">
+        <h4 class="mb-3"><i class="bi bi-receipt me-2"></i> Transactions</h4>
+
+        @if (!Model.Any())
+        {
+            <div class="alert alert-info bg-dark border-secondary text-light">
+                No transactions for this wallet yet.
+            </div>
+        }
+        else
+        {
+            <table class="table table-dark table-hover table-bordered align-middle">
+                <thead>
+                    <tr>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Amount</th>
+                        <th>Fee</th>
+                        <th>Note</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tx in Model)
+                    {
+                        bool isCoinbase = tx.Tx.FromAddress == "COINBASE";
+                        bool isIncoming = tx.Tx.ToAddress == ViewBag.Address;
+                        string rowClass = isCoinbase ? "table-warning" : (isIncoming ? "table-success" : "table-danger");
+
+                        <tr class="@rowClass">
+                            <td>@tx.Tx.FromAddress</td>
+                            <td>@tx.Tx.ToAddress</td>
+                            <td class="fw-semibold">@tx.Tx.Amount ₿</td>
+                            <td>@tx.Tx.Fee ₿</td>
+                            <td>@tx.Tx.Note</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+    <div id="copyToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto">Copied</strong>
+            <button type="button" class="btn-close btn-close-white ms-2 mb-1" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            Address copied to clipboard.
+        </div>
+    </div>
+</div>
+
+<script>
+    function showToast(message) {
+        const toastEl = document.getElementById('copyToast');
+        toastEl.querySelector('.toast-body').innerText = message;
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+    }
+</script>
