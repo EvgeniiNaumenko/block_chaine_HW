@@ -5,6 +5,8 @@
     var wallet = ViewBag.Wallet;
     string address = ViewBag.Address;
     decimal balance = ViewBag.Balance;
+    int lastBlockIndex = ViewBag.LastBlockIndex ?? 0; // передается из контроллера
+    int confirmationsRequired = 6; // сколько блоков для полной подтвержденности
 }
 
 <style>
@@ -31,6 +33,7 @@
 
     .table-dark th, .table-dark td {
         vertical-align: middle;
+        border-color: #30363d;
     }
 
     .table-hover tbody tr:hover {
@@ -47,6 +50,16 @@
 
     .table-warning {
         background-color: #5a4e2e !important;
+    }
+
+    .text-confirmed {
+        color: #3fb950;
+        font-weight: bold;
+    }
+
+    .text-pending {
+        color: #f0ad4e;
+        font-weight: bold;
     }
 
     .btn-primary {
@@ -68,10 +81,6 @@
         .btn-secondary:hover {
             background-color: #484f58;
         }
-
-    .text-success {
-        color: #3fb950 !important;
-    }
 
     .badge-address {
         background-color: #21262d;
@@ -159,6 +168,7 @@
                         <th>To</th>
                         <th>Amount</th>
                         <th>Fee</th>
+                        <th>Confirmations</th>
                         <th>Note</th>
                     </tr>
                 </thead>
@@ -169,12 +179,33 @@
                         bool isIncoming = tx.Tx.ToAddress == ViewBag.Address;
                         string rowClass = isCoinbase ? "table-warning" : (isIncoming ? "table-success" : "table-danger");
 
+                        // Подсчёт подтверждений
+                        int confirmations = 0;
+                        string confText = "";
+                        if (tx.BlockIndex.HasValue)
+                        {
+                            confirmations = ViewBag.LastBlockIndex - tx.BlockIndex.Value + 1;
+                            if (confirmations >= 6)
+                            {
+                                confText = "Confirmed ✔";
+                            }
+                            else
+                            {
+                                confText = $"Pending ({6 - confirmations} blocks left)";
+                            }
+                        }
+                        else
+                        {
+                            confText = "Pending ⏳";
+                        }
+
                         <tr class="@rowClass">
                             <td>@tx.Tx.FromAddress</td>
                             <td>@tx.Tx.ToAddress</td>
                             <td class="fw-semibold">@tx.Tx.Amount ₿</td>
                             <td>@tx.Tx.Fee ₿</td>
                             <td>@tx.Tx.Note</td>
+                            <td>@confText</td>
                         </tr>
                     }
                 </tbody>

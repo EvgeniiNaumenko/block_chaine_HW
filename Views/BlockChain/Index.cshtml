@@ -171,6 +171,20 @@
 
     <hr />
 
+    <!-- Stats -->
+    <div class="blockchain-stats mb-4">
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-label">Difficulty</div>
+                <div class="stat-value">@ViewBag.Difficulty</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Mining Reward</div>
+                <div class="stat-value">@ViewBag.CurrentReward <i class="bi bi-coin"></i></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Control Panel -->
     <div class="control-panel mb-4">
         <form method="get" asp-action="Index" class="node-selector mb-3 d-flex gap-2 align-items-center">
